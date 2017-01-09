@@ -93,6 +93,9 @@ def Check(showDate=1,verbose=0):
 def PersistConnect(username=''):
     sleepTime = '20'#in seconds
     connected = False
+    checkedConnection = False
+    notifiedConnection = False
+    notifiedDisconnection = False
     if len(username) == 0:
         print 'Please put your username in now'
         username = str(raw_input('username: '))
@@ -101,18 +104,30 @@ def PersistConnect(username=''):
     print 'Attempting a connection...'
     time.sleep(int(sleepTime))
     connected = bool(Check(1,1))
+    checkedConnection = True
     while 1:
-        if not connected:
+        if checkedConnection and connected and not notifiedConnection:
+            subprocess.Popen(['notify-send','-t',sleepTime,'You have been connected to %s'%(client.GetRealm())])
+            notifiedConnection = True
+            notifiedDisconnection = False
+        #if not connected:
+        if checkedConnection and not connected:
+            checkedConnection = False
+            if notifiedConnection and not notifiedDisconnection:
+                subprocess.Popen(['notify-send','-t',sleepTime,'You have been disconnected from %s'%(client.GetRealm())])
+                notifiedDisconnection = True
+                notifiedConnection = False
             print 'Connection NOT established! Retry...'
             proc.communicate() #end the previous process
             proc = subprocess.Popen(['python','-c','import Pulse; Pulse.Connect(\"%s\")'%(username)])#,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         print 'Next update will occur in %s seconds '%(sleepTime)
         time.sleep(int(sleepTime))
         connected = bool(Check(1,1))
+        checkedConnection = True
 
 #CTRL-C action
 def signal_handler(signal,frame):
-    print 'Exiting and disconnecting...'
+    print '\nExiting and disconnecting...'
     Disconnect()
     time.sleep(5)
     sys.exit(1)
