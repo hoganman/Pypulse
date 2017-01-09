@@ -38,13 +38,11 @@ class pulse:
         self.username = newUsername
     def SetScript(self,newscript):
         self.script = newscript
-    def SetHost(self):
+    def SetHost(self,newhost):
         self.host = newhost
-    def SetUsername(self):
-        self.username = newusername
-    def SetURL(self):
+    def SetURL(self,newurl):
         self.url = newurl
-    def SetRealm(self):
+    def SetRealm(self,newrealm):
         self.realm = newrealm
     def CheckConnection(self,verbose=0):
         result = os.popen('%s -S'%(self.GetScript())).read()
@@ -66,22 +64,22 @@ class pulse:
             #print 'CONNECTED!'
             if verbose:
                 os.system('%s -S'%(self.GetScript()))
-            self.connected=True
             return 1
         #print 'NOT CONNECTED!'
-        self.connected=False
         return 0
     def Disconnect(self):
-        print 'Disconnecting...'
+        print 'Disconnecting. Please wait...'
         os.system('%s -K'%(self.GetScript()))
-        self.connected=False
+        #subprocess.Popen([self.GetScript(),'-K'])
 
 client = pulse()
 
 def Connect(username=''):
+    if len(username) == 0:
+        print 'Please put your username in now'
+        username = str(raw_input('username: '))
     global client
-    if len(username) != 0:
-        client.SetUsername(username)
+    client.SetUsername(username)
     client.Connect()
 
 def Disconnect():
@@ -95,6 +93,9 @@ def Check(showDate=1,verbose=0):
 def PersistConnect(username=''):
     sleepTime = '20'#in seconds
     connected = False
+    if len(username) == 0:
+        print 'Please put your username in now'
+        username = str(raw_input('username: '))
     global client
     proc = subprocess.Popen(['python','-c','import Pulse; Pulse.Connect(\"%s\")'%(username)])#,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     print 'Attempting a connection...'
