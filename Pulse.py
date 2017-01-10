@@ -151,9 +151,16 @@ def PersistConnect(username=''):
 
 #CTRL-C action
 def signal_handler(signal,frame):
-    print '\nExiting and disconnecting...\n'
+    print '\nExiting...'
+    connected = bool(Check(0,0))
+    if connected:
+        print 'and disconnecting...'
     for process in listOfProcesses:
         process.communicate()
-    Disconnect()
+    connected = bool(Check(0,0))
+    if connected:
+        Disconnect()
+    else:
+        os.system('notify-send -t %s \"Disconnected from %s\"'%(sleepTime,client.GetHost()))
     sys.exit(1)
 signal.signal(signal.SIGINT, signal_handler)
