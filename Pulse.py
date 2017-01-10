@@ -67,12 +67,18 @@ class pulse:
             return 1
         #print 'NOT CONNECTED!'
         return 0
-    def Disconnect(self):
-        print 'Disconnecting. Please wait...'
-        os.system('%s -K'%(self.GetScript()))
+    def Disconnect(self,verbose=1):
+        if verbose:
+            print 'Disconnecting. Please wait...'
+        status = os.popen('%s -K'%(self.GetScript())).read()
+        if verbose:
+            print status
+
         #subprocess.Popen([self.GetScript(),'-K'])
 
 client = pulse()
+sleepTime = '20'#in seconds
+listOfProcesses = []
 
 def Connect(username=''):
     if len(username) == 0:
@@ -83,7 +89,22 @@ def Connect(username=''):
     client.Connect()
 
 def Disconnect():
+    global client
     client.Disconnect()
+    time.sleep(1)
+    connected = Check(0,0)
+    if not connected:
+        os.system('notify-send -t %s \"Disconnected from %s\"'%(sleepTime,client.GetHost()))
+        return
+    for times in range(0,5):
+        client.Disconnect()
+        time.sleep(1)
+        connected = Check(0,0)
+        if not connected:
+            os.system('notify-send -t %s \"Disconnected from %s\"'%(sleepTime,client.GetHost()))
+            return
+    os.system('notify-send -t %s \"Unable to disconnect from %s\"'%(sleepTime,client.GetHost()))
+    
 
 def Check(showDate=1,verbose=0):
     if showDate and verbose:
@@ -91,7 +112,6 @@ def Check(showDate=1,verbose=0):
     return bool(client.CheckConnection(verbose))
 
 def PersistConnect(username=''):
-    sleepTime = '20'#in seconds
     connected = False
     checkedConnection = False
     notifiedConnection = False
@@ -100,26 +120,30 @@ def PersistConnect(username=''):
         print 'Please put your username in now'
         username = str(raw_input('username: '))
     global client
-    proc = subprocess.Popen(['python','-c','import Pulse; Pulse.Connect(\"%s\")'%(username)])#,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    proc = subprocess.Popen(['python','-c','import Pulse; Pulse.Connect(\"%s\")'%(username)])
+    listOfProcesses.append(proc)
     print 'Attempting a connection...'
     time.sleep(int(sleepTime))
     connected = bool(Check(1,1))
     checkedConnection = True
     while 1:
         if checkedConnection and connected and not notifiedConnection:
-            subprocess.Popen(['notify-send','-t',sleepTime,'You have been connected to %s'%(client.GetRealm())])
+            subprocess.Popen(['notify-send','-t',sleepTime,'You have been connected to %s'%(client.GetHost())])
             notifiedConnection = True
             notifiedDisconnection = False
         #if not connected:
         if checkedConnection and not connected:
+            proc.communicate() #kill the previous process
+            listOfProcesses.remove(proc)
             checkedConnection = False
             if notifiedConnection and not notifiedDisconnection:
-                subprocess.Popen(['notify-send','-t',sleepTime,'You have been disconnected from %s'%(client.GetRealm())])
+                subprocess.Popen(['notify-send','-t',sleepTime,'You have been disconnected from %s'%(client.GetHost())])
                 notifiedDisconnection = True
                 notifiedConnection = False
             print 'Connection NOT established! Retry...'
-            proc.communicate() #end the previous process
-            proc = subprocess.Popen(['python','-c','import Pulse; Pulse.Connect(\"%s\")'%(username)])#,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            #instantiate a new connection
+            proc = subprocess.Popen(['python','-c','import Pulse; Pulse.Connect(\"%s\")'%(username)])
+            listOfProcesses.append(proc)
         print 'Next update will occur in %s seconds '%(sleepTime)
         time.sleep(int(sleepTime))
         connected = bool(Check(1,1))
@@ -127,8 +151,9 @@ def PersistConnect(username=''):
 
 #CTRL-C action
 def signal_handler(signal,frame):
-    print '\nExiting and disconnecting...'
+    print '\nExiting and disconnecting...\n'
+    for process in listOfProcesses:
+        process.communicate()
     Disconnect()
-    time.sleep(5)
     sys.exit(1)
 signal.signal(signal.SIGINT, signal_handler)
